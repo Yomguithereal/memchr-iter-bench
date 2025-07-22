@@ -153,6 +153,10 @@ impl<'h> OneMatches<'h> {
     }
 
     unsafe fn next(&mut self) -> Option<usize> {
+        if self.start >= self.end {
+            return None;
+        }
+
         'main: loop {
             // Processing current move mask
             if let Some((from, mask)) = &mut self.mask {
@@ -170,28 +174,32 @@ impl<'h> OneMatches<'h> {
                 return Some(offset.distance(self.start));
             }
 
+            // NOTE: bytes from the start must be consumed linearly until
+            // alignement is reached!
+            // NOTE: must not happen if empty
+
             // Initial unaligned load
-            if self.current == self.start {
-                let chunk = _mm_loadu_si128(self.current as *const __m128i);
-                let cmp = _mm_cmpeq_epi8(chunk, self.splat);
-                let mask = _mm_movemask_epi8(cmp) as u32;
+            // if self.current == self.start {
+            //     let chunk = _mm_loadu_si128(self.current as *const __m128i);
+            //     let cmp = _mm_cmpeq_epi8(chunk, self.splat);
+            //     let mask = _mm_movemask_epi8(cmp) as u32;
 
-                let next = self.start.add(BYTES - (self.start.as_usize() & ALIGN));
+            //     let next = self.start.add(BYTES - (self.start.as_usize() & ALIGN));
 
-                if mask != 0 {
-                    self.mask = Some((self.start, mask));
-                    self.current = next;
-                    continue 'main;
-                } else {
-                    self.current = next;
-                }
-            }
+            //     if mask != 0 {
+            //         self.mask = Some((self.start, mask));
+            //         self.current = next;
+            //         continue 'main;
+            //     } else {
+            //         self.current = next;
+            //     }
+            // }
 
             // Main loop of aligned loads
             while self.current <= self.end.sub(BYTES) {
-                debug_assert_eq!(0, self.current.as_usize() % BYTES);
+                // debug_assert_eq!(0, self.current.as_usize() % BYTES);
 
-                let chunk = _mm_load_si128(self.current as *const __m128i);
+                let chunk = _mm_loadu_si128(self.current as *const __m128i);
                 let cmp = _mm_cmpeq_epi8(chunk, self.splat);
                 let mask = _mm_movemask_epi8(cmp) as u32;
 
@@ -252,8 +260,8 @@ mod tests {
 
     #[test]
     fn test_basics() {
-        dbg!(OneMatchesIter::new(b',', b"name,surname,age").collect::<Vec<_>>());
-        dbg!(memchr::memchr_iter(b',', b"name,surname,age").collect::<Vec<_>>());
+        // dbg!(OneMatchesIter::new(b',', b"name,surname,age").collect::<Vec<_>>());
+        // dbg!(memchr::memchr_iter(b',', b"name,surname,age").collect::<Vec<_>>());
 
         assert_eq!(scalar_baseline(b',', b"name,surname,age"), 2);
         assert_eq!(memchr_sse2_loop(b',', b"name,surname,age"), 2);
@@ -262,6 +270,24 @@ mod tests {
         assert_eq!(memoized_memchr_sse2_iter(b',', b"name,surname,age"), 2);
     }
 
-    // TODO: test from wide_split
-    // TODO: test from bench itself
+    #[test]
+    fn test_one_matches_iter() {
+        // Empty
+        assert_eq!(memoized_memchr_sse2_iter(b',', b""), 0);
+
+        // Not found
+        assert_eq!(memoized_memchr_sse2_iter(b',', &b"b".repeat(1000)), 0);
+
+        // Regular
+        assert_eq!(memoized_memchr_sse2_iter(b',', &b",".repeat(75)), 75);
+
+        // Aligned on chunk size
+        assert_eq!(memoized_memchr_sse2_iter(b',', &b",".repeat(64)), 64);
+
+        // Repeated
+        assert_eq!(
+            memoized_memchr_sse2_iter(b',', &b"name,surname,age,color".repeat(5000)),
+            5000 * 3
+        );
+    }
 }

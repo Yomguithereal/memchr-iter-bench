@@ -3,7 +3,8 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use memchr_iter_bench::{
-    memchr_sse2_iter, memchr_sse2_loop, memchr_sse2_loop_amortized, scalar_baseline,
+    memchr_sse2_iter, memchr_sse2_loop, memchr_sse2_loop_amortized, memoized_memchr_sse2_iter,
+    scalar_baseline,
 };
 
 fn group(c: &mut Criterion, name: &str, haystack: &[u8]) {
@@ -22,6 +23,9 @@ fn group(c: &mut Criterion, name: &str, haystack: &[u8]) {
     });
     group.bench_function("memchr_sse2_iter", |b| {
         b.iter(|| memchr_sse2_iter(b',', haystack));
+    });
+    group.bench_function("memoized_memchr_sse2_iter", |b| {
+        b.iter(|| memoized_memchr_sse2_iter(b',', haystack));
     });
 
     group.finish();
