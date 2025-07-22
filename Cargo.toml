@@ -1,0 +1,17 @@
+[package]
+name = "memchr-iter-bench"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+memchr = "2.7.5"
+
+[dev-dependencies]
+criterion = "0.6.0"
+
+[[bench]]
+name = "memchr_iter"
+harness = false
