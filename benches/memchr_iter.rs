@@ -36,7 +36,7 @@ fn bench(c: &mut Criterion) {
     group(c, "very_short_string", b"a,c");
     group(c, "very_short_string_no_matches", b"abc");
 
-    group(c, "short_string_close_matches", b"name,surname,age,color");
+    group(c, "short_string_dense_matches", b"name,surname,age,color");
     group(c, "short_string_no_matches", b"thereisnothingheretobefound");
 
     group(
@@ -46,13 +46,19 @@ fn bench(c: &mut Criterion) {
     );
     group(
         c,
-        "long_string_close_matches",
+        "long_string_dense_matches",
         &b"name,surname,age,color".repeat(5000),
     );
     group(
         c,
         "long_string_sparse_matches",
         &b"thereisnothing,heretobefound".repeat(5000),
+    );
+    group(
+        c,
+        "long_string_very_sparse_matches",
+        &b"thereisnothingthereisnothingthereisnothing,heretobefoundheretobefoheretobefo"
+            .repeat(5000),
     );
     group(
         c,
